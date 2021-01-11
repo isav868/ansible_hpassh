@@ -1,0 +1,4 @@
+
+FIRST TIME USERS: do NOT just press ENTER when asked for a password. Send some characters instead.
+After login, copy your public key to ~/.ssh/authorized_keys.
+

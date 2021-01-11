@@ -1,0 +1,166 @@
+---
+- hosts: servers
+  become: true
+
+
+  pre_tasks:
+
+  - name: update package cache
+    package:
+      update_cache: yes
+
+  - name: gather installed packages facts
+    package_facts:
+      manager: "auto"
+
+
+  tasks:
+
+  - name: protect original pam.d files from change by libpam-script installation
+    copy:
+      src: '{{ item }}'
+      dest: '{{ item }}.system'
+      remote_src: yes
+    loop:
+      - '/etc/pam.d/common-account'
+      - '/etc/pam.d/common-auth'
+      - '/etc/pam.d/common-password'
+      - '/etc/pam.d/common-session'
+      - '/etc/pam.d/common-session-noninteractive'
+    when: "'libpam-script' not in ansible_facts.packages"
+
+  - name: install necessary packages
+    package:
+      name:
+        - jq
+        - sqlite
+        - libpam-script
+      state: latest
+      update_cache: yes
+    when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+
+  - name: restore original pam.d files after libpam-script installation
+    copy:
+      src: '{{ item }}.system'
+      dest: '{{ item }}'
+      remote_src: yes
+      backup: yes
+    loop:
+      - '/etc/pam.d/common-account'
+      - '/etc/pam.d/common-auth'
+      - '/etc/pam.d/common-password'
+      - '/etc/pam.d/common-session'
+      - '/etc/pam.d/common-session-noninteractive'
+    when: "'libpam-script' not in ansible_facts.packages"
+
+  - name: add passport user
+    user:
+      name: passport
+      comment: Hydra Passport
+
+  - name: copy libpam script for passport auth
+    copy:
+      src: files/pam_script_auth
+      dest: /usr/share/libpam-script
+      mode: 0755
+
+  - name: create $HOME/bin dir for passport script
+    file:
+      path: /home/passport/bin
+      state: directory
+      owner: root
+      group: passport
+      mode: 0750
+
+  - name: place passport_ssh_auth.sh into $HOME/bin
+    copy:
+      src: files/passport_ssh_auth.sh
+      dest: /home/passport/bin
+      owner: root
+      group: passport
+      mode: 0750
+
+  - name: place passport subroutines into $HOME
+    copy:
+      src: files/passport_subs
+      dest: /home/passport/.passport_subs
+      owner: root
+      group: passport
+      mode: 0640
+
+  - name: place passport credentials into $HOME
+    copy:
+      src: files/passport_creds
+      dest: /home/passport/.passport_creds
+      owner: root
+      group: passport
+      mode: 0640
+
+  - name: set passport $HOME permissions
+    file:
+      path: /home/passport
+      state: directory
+      owner: root
+      group: passport
+      mode: 0750
+
+  - name: create sshd config backup
+    copy:
+      src: /etc/ssh/sshd_config
+      dest: /etc/ssh/sshd_config.backup_ansible
+      remote_src: yes
+      force: no
+
+  - name: copy preauth sshd banner
+    copy:
+      src: files/sshd_message
+      dest: /etc/ssh/
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: enable PasswordAuthentication in sshd config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*PasswordAuthentication\s+no'
+      line: 'PasswordAuthentication yes'
+    notify:
+      - reload_sshd
+
+  - name: add preauth banner into sshd config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      line: 'Banner /etc/ssh/sshd_message'
+    notify:
+      - reload_sshd
+
+  - name: add authorized keys command into sshd config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      line: 'AuthorizedKeysCommand /home/passport/bin/passport_ssh_auth.sh'
+    notify:
+      - reload_sshd
+
+  - name: add authorized keys command user into sshd config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      line: 'AuthorizedKeysCommandUser passport'
+      validate: sshd -t -f %s
+    notify:
+      - reload_sshd
+
+  - name: add libpam-script auth to /etc/pam.d/sshd
+    lineinfile:
+      path: /etc/pam.d/sshd
+      insertbefore: BOF
+      line: 'auth optional pam_script.so'
+      state: present
+    notify:
+      - reload_sshd
+
+  handlers:
+  - name: reload_sshd
+    service:
+      name: ssh
+      state: reloaded
+
