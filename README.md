@@ -7,7 +7,7 @@ Credentails can be obtained from Oleg Adignalov.
 
 The default Passport credentials are in `files/passport_creds` (encrypted by Ansible Vault).
 
-A single SSH key (`~/.ssh/onix_ansible_ed25519`) is used for connecting to each started VM.
+A single SSH key (`~/.ssh/onix_ansible_ed25519`) is used for connecting to each started VM. It is known that if you start many VMs in a single Vagrant session, Vagrant will generate a separate key for every VM and ssh may refuse your login because of ssh-agent key 'pollution'.
 
 The deployment process is described in `provisioning.yml` file.
 
