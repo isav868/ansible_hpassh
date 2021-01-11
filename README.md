@@ -34,6 +34,8 @@ During the installation of `libpam-script` the system `/etc/pam.d/common-*` file
 Check the `Vagrantfile` and `inventory` before you begin.
 In the current version only Ubuntu 20.04 is uncommented (IP: 172.28.128.20).
 
+It is assumed that Ansible uses this SSH key: `~/.ssh/onix_ansible_ed25519`. You can use any other key, just edit an appropriate sections within `Vagrantfile` and `ansible.cfg`.
+
 ```
 $ ssh-keygen -R 172.28.128.20 # remove an old ssh key from known_hosts for 172.28.128.20
 
