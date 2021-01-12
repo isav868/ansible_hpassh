@@ -71,7 +71,7 @@ $ ssh -i ~/.ssh/your_priv_key your.passport_username@172.28.128.20
 Enter your passphrase when asked. You should now have user access to the VM. Now try the `sudo` command:
 
 ```
-$ sudo id
+user@ubuntu20:~$ sudo id
 ```
 
 This concludes the demo.
